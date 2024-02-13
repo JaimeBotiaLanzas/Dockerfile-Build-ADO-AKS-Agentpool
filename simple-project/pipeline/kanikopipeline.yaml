@@ -1,0 +1,52 @@
+trigger:
+- dev
+
+
+#Global variables
+variables:
+- name: BRANCH_NAME
+  value: $[replace(variables['Build.SourceBranch'], 'refs/heads/', '')]
+- name: PIPELINE_ID
+  value: $[replace(variables['Build.BuildNumber'], '.', '-')]
+- name: IMAGE_VERSION_GLOBAL
+  value: $(Build.BuildNumber)
+- name: PROJECT_NAME
+  value: aks-agent
+- name: REPO_NAME
+  value: aks-agent
+- name: AZURE_CONTAINER_REGISTRY_NAME
+  value: 'aksagentacr'
+- name: KANIKO_NAMESPACE
+  value: azure-devops
+- name: APP_IMAGE_NAME
+  value: 'simple-project'
+
+
+
+
+
+stages:
+- stage: FrontendBuild
+  displayName: FrontendBuild
+  pool: testpool
+  dependsOn: []
+  variables:      
+    IMAGE_NAME: "$(APP_IMAGE_NAME)-test"
+    WORKING_DIRECTORY: "$(APP_IMAGE_NAME)/application"
+    KANIKO_NAME: "$(APP_IMAGE_NAME)"
+  jobs:
+  - job:
+    steps:
+    - task: AzureCLI@1
+      displayName: '${{ variables.WORKING_DIRECTORY }}-building'
+      env:
+        SYSTEM_ACCESSTOKEN: $(System.AccessToken)
+      inputs:
+        azureSubscription: 'kaniko-test'
+        scriptPath: '$(Build.SourcesDirectory)/simple-project/pipeline/kaniko.sh'
+    - task: AzureCLI@1
+      displayName: '${{ variables.WORKING_DIRECTORY }}-scanning'
+      inputs:
+        azureSubscription: 'kaniko-test'
+        scriptPath: '$(Build.SourcesDirectory)/simple-project/pipeline/trivy.sh'
+      continueOnError: true

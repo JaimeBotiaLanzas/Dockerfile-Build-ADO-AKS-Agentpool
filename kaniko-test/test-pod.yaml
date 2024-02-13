@@ -1,0 +1,41 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: kaniko-test
+  namespace: azure-devops
+spec:
+  backoffLimit: 1
+  ttlSecondsAfterFinished: 300
+  template:
+    spec:
+      initContainers:
+      - name: git-clone
+        image: alpine
+        command: ["sh", "-c"]
+        args: 
+        - |
+          while true; do sleep 1; if [ -f /workspace/context/Dockerfile ]; then break; fi done
+        volumeMounts: 
+        - name: local-volume
+          mountPath: /workspace
+      containers:
+      - name: kaniko
+        image: gcr.io/kaniko-project/executor:v1.9.1
+        args:
+          - "--context=dir:///workspace/context"
+          - "--destination=$ACR.azurecr.io/test-image:v1"
+        volumeMounts:
+        - name: kaniko-secret
+          mountPath: /kaniko/.docker
+        - name: local-volume
+          mountPath: /workspace
+      restartPolicy: Never
+      volumes:
+      - name: kaniko-secret
+        secret:
+          secretName: registrysecret
+          items:
+            - key: dockerconfigjson
+              path: config.json
+      - name: local-volume
+        emptyDir: {}
